@@ -4,10 +4,7 @@ import com.example.chating.domain.chat.Dto.LoginRequestDTO;
 import com.example.chating.domain.chat.Dto.LoginResponseDTO;
 import com.example.chating.domain.chat.Service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -29,8 +26,11 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public LoginResponseDTO refresh(@RequestBody String refreshToken) {
-        return authService.refreshToken(refreshToken);
+    public LoginResponseDTO refresh(@RequestHeader("Authorization") String token) {
+        if (token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
+        return authService.refreshToken(token);
     }
 
 
