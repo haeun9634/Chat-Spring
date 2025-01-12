@@ -6,6 +6,8 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -30,4 +32,12 @@ public class Message {
 
     @CreationTimestamp
     private LocalDateTime sentAt;
+
+    // 메시지 읽음 상태를 추적할 사용자 리스트
+    @ManyToMany
+    private Set<User> readByUsers = new HashSet<>();
+
+    public void addReadByUser(User user) {
+        this.readByUsers.add(user);
+    }
 }

@@ -13,8 +13,9 @@ public class StompChatController {
     private final MessageService messageService;
 
     @MessageMapping("/chat/message") // 클라이언트에서 전송할 목적지
-    @SendTo("/topic/chatroom") // 구독자들에게 전달할 경로
+    @SendTo("/topic/chatroom/{roomId}") // 채팅방 구독자들에게 메시지 브로드캐스트
     public ChatMessage handleChatMessage(ChatMessage chatMessage) {
+        System.out.println("Received message: {}"+ chatMessage);
         // 메시지 저장
         Long chatRoomId = Long.parseLong(chatMessage.getRoomId());
         Long senderId = Long.parseLong(chatMessage.getSender());

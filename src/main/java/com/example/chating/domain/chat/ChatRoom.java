@@ -28,4 +28,6 @@ public class ChatRoom {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+
 }

@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.socket.WebSocketSession;
@@ -82,8 +83,8 @@ public class ChatController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = Message.class)))
     })
     @GetMapping("/rooms/{roomId}/messages")
-    public ResponseEntity<List<Message>> getMessages(@PathVariable Long roomId) {
-        return ResponseEntity.ok(messageService.getMessagesByChatRoom(roomId));
+    public ResponseEntity<List<MessageDto>> getMessages(@PathVariable Long roomId, Pageable pageable) {
+        return ResponseEntity.ok(messageService.getMessagesByChatRoom(roomId, pageable));
     }
 
     @Operation(summary = "채팅방 연결", description = "웹소켓을 통해 채팅방에 연결합니다.")
@@ -95,4 +96,16 @@ public class ChatController {
         webSocketChatHandler.joinChatRoom(roomId, session);
         return ResponseEntity.ok().build();
     }
+
+    @Operation(summary = "사용자가 참여한 채팅방 조회", description = "사용자가 참여 중인 채팅방 목록을 조회합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "참여 채팅방 조회 성공",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ChatRoom.class)))
+    })
+    @GetMapping("/users/{userId}/rooms")
+    public ResponseEntity<List<ChatRoom>> getUserChatRooms(@PathVariable Long userId) {
+        List<ChatRoom> chatRooms = chatRoomService.getChatRoomsByUser(userId);
+        return ResponseEntity.ok(chatRooms);
+    }
+
 }

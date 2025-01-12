@@ -39,4 +39,13 @@ public class ChatRoomService {
                 .filter(userChatRoom -> userChatRoom.getUser().getId().equals(userId))
                 .forEach(userChatRoomRepository::delete);
     }
+
+    public ChatRoom findById(Long id) {
+        return chatRoomRepository.findById(id).orElseThrow(() -> new RuntimeException("ChatRoom not found"));
+    }
+
+
+    public List<ChatRoom> getChatRoomsByUser(Long userId) {
+        return chatRoomRepository.findChatRoomsByUserId(userId);
+    }
 }
