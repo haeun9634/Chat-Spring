@@ -2,7 +2,7 @@ package com.example.chating.domain.chat.Controller;
 
 import com.example.chating.domain.chat.ChatRoom;
 import com.example.chating.domain.chat.Message;
-import com.example.chating.domain.chat.MessageDto;
+import com.example.chating.domain.chat.Dto.MessageDto;
 import com.example.chating.domain.chat.Service.ChatRoomService;
 import com.example.chating.domain.chat.Service.MessageService;
 import com.example.chating.global.WebSocketChatHandler;

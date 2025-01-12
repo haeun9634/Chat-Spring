@@ -1,4 +1,4 @@
-package com.example.chating.domain.chat;
+package com.example.chating.domain.chat.Dto;
 
 import lombok.*;
 

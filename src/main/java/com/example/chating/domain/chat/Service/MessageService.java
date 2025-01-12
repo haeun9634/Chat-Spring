@@ -2,7 +2,7 @@ package com.example.chating.domain.chat.Service;
 
 import com.example.chating.domain.User;
 import com.example.chating.domain.chat.ChatRoom;
-import com.example.chating.domain.chat.MessageDto;
+import com.example.chating.domain.chat.Dto.MessageDto;
 import com.example.chating.domain.chat.Repository.MessageRepository;
 import com.example.chating.domain.chat.Message;
 import com.example.chating.domain.chat.Repository.UserRepository;
