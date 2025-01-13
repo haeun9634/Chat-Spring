@@ -1,6 +1,6 @@
-package com.example.chating.domain.chat.Controller;
+package com.example.chating.Controller;
 
-import com.example.chating.domain.chat.Service.MessageService;
+import com.example.chating.Service.MessageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

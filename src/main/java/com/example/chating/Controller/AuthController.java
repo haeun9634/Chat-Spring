@@ -1,8 +1,8 @@
-package com.example.chating.domain.chat.Controller;
+package com.example.chating.Controller;
 
-import com.example.chating.domain.chat.Dto.LoginRequestDTO;
-import com.example.chating.domain.chat.Dto.LoginResponseDTO;
-import com.example.chating.domain.chat.Service.AuthService;
+import com.example.chating.Dto.LoginRequestDTO;
+import com.example.chating.Dto.LoginResponseDTO;
+import com.example.chating.Service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 

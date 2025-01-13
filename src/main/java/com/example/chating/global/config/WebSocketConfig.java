@@ -25,48 +25,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws/chat") // WebSocket 연결 URL
-                .setAllowedOrigins("http://localhost:3000")  // 프론트엔드의 도메인을 지정해야 할 수도 있음
+                .setAllowedOrigins("http://localhost:3000")  // 프론트엔드의 도메인을 지정
                 .withSockJS(); // SockJS 지원
-    }
-
-    @Override
-    public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(new StompAuthenticationInterceptor());
-    }
-
-    public class StompAuthenticationInterceptor implements ChannelInterceptor {
-        @Override
-        public Message<?> preSend(Message<?> message, MessageChannel channel) {
-            StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
-
-            if (StompCommand.CONNECT.equals(accessor.getCommand())) {
-                String token = accessor.getFirstNativeHeader("Authorization");
-                // JWT 인증 로직
-                if (isValidToken(token)) {
-                    String username = extractUsernameFromToken(token);
-                    Long userId = extractUserIdFromToken(token);
-                    accessor.setUser(new AuthenticatedUser(username, userId));
-                } else {
-                    throw new IllegalArgumentException("Invalid Token");
-                }
-            }
-            return message;
-        }
-
-        private boolean isValidToken(String token) {
-            // JWT 검증 로직 (예: JWT 라이브러리 사용)
-            return token != null && token.startsWith("Bearer ");
-        }
-
-        private String extractUsernameFromToken(String token) {
-            // JWT에서 사용자명 추출
-            return "exampleUser";
-        }
-
-        private Long extractUserIdFromToken(String token) {
-            // JWT에서 사용자 ID 추출
-            return 1L;
-        }
     }
 
 }

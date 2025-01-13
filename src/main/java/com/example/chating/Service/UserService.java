@@ -1,7 +1,7 @@
-package com.example.chating.domain.chat.Service;
+package com.example.chating.Service;
 
 import com.example.chating.domain.User;
-import com.example.chating.domain.chat.Repository.UserRepository;
+import com.example.chating.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

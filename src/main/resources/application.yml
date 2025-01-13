@@ -11,3 +11,14 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  data:
+    redis:
+      host: localhost    # Redis 서버 호스트
+      port: 6379         # Redis 서버 포트
+      password: ""       # Redis 비밀번호 (필요 시)
+      timeout: 2000ms    # 연결 시간 초과 설정
+      lettuce:
+        pool:
+          max-active: 8  # 연결 풀의 최대 연결 수
+          max-idle: 8    # 연결 풀의 최대 유휴 연결 수
+          min-idle: 0    # 연결 풀의 최소 유휴 연결 수

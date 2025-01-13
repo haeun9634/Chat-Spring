@@ -1,4 +1,4 @@
-package com.example.chating.domain.chat.Dto;
+package com.example.chating.Dto;
 
 public class LoginRequestDTO {
     private String username;

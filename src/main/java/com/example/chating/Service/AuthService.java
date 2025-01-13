@@ -1,9 +1,9 @@
-package com.example.chating.domain.chat.Service;
+package com.example.chating.Service;
 
 import com.example.chating.domain.User;
-import com.example.chating.domain.chat.Dto.LoginRequestDTO;
-import com.example.chating.domain.chat.Dto.LoginResponseDTO;
-import com.example.chating.domain.chat.Repository.UserRepository;
+import com.example.chating.Dto.LoginRequestDTO;
+import com.example.chating.Dto.LoginResponseDTO;
+import com.example.chating.Repository.UserRepository;
 import com.example.chating.global.TokenProvider;
 import io.jsonwebtoken.Claims;
 import org.springframework.beans.factory.annotation.Autowired;
