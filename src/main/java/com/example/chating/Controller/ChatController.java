@@ -121,13 +121,16 @@ public class ChatController {
      * @param roomId 메시지 조회 대상 채팅방 ID
      * @return 채팅방에 포함된 메시지 목록
      */
-    @Operation(summary = "메시지 조회", description = "지정된 채팅방의 모든 메시지를 조회합니다.")
+    @Operation(summary = "메시지 조회", description = "지정된 채팅방의 메시지를 페이지네이션을 사용하여 조회합니다.")
     @GetMapping("/rooms/{roomId}/messages")
     public ResponseEntity<List<ChatMessage>> getMessages(
             @RequestHeader("Authorization") String token,
-            @PathVariable Long roomId) {
-        List<ChatMessage> messages = messageService.getMessagesByChatRoom(roomId); // 메시지 조회
-        return ResponseEntity.ok(messages); // 메시지 목록 반환
+            @PathVariable Long roomId,
+            @RequestParam(defaultValue = "0") int page, // 페이지 번호 (기본값: 0)
+            @RequestParam(defaultValue = "20") int size // 페이지 크기 (기본값: 20)
+    ) {
+        List<ChatMessage> messages = messageService.getMessagesByChatRoom(roomId, page, size);
+        return ResponseEntity.ok(messages);
     }
 
     /**

@@ -24,7 +24,7 @@ public class Message {
     @JoinColumn(name = "chatroom_id")
     private ChatRoom chatRoom;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER) // EAGER로 변경
     @JoinColumn(name = "sender_id")
     private User sender;
 
