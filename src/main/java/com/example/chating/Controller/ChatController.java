@@ -157,8 +157,7 @@ public class ChatController {
         if (token.startsWith("Bearer ")) {
             token = token.substring(7); // "Bearer " 제거
         }
-        Long userId = tokenProvider.extractClaims(token).get("userId", Long.class);
-        System.out.println("Extracted userId from token: " + userId);
+
         return tokenProvider.extractClaims(token).get("userId", Long.class); // 토큰에서 사용자 ID 추출
     }
 }
