@@ -128,7 +128,8 @@ public class ChatController {
             @RequestParam(defaultValue = "0") int page, // 페이지 번호 (기본값: 0)
             @RequestParam(defaultValue = "20") int size // 페이지 크기 (기본값: 20)
     ) {
-        List<ChatMessage> messages = messageService.getMessagesByChatRoom(roomId, page, size);
+        Long userId = extractUserIdFromToken(token); // JWT 토큰에서 사용자 ID 추출
+        List<ChatMessage> messages = messageService.getMessagesByChatRoom(roomId,userId, page, size);
         return ResponseEntity.ok(messages);
     }
 
