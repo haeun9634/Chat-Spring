@@ -27,14 +27,17 @@ public class MessageService {
 
     // 메시지 저장
     public void saveMessage(Long chatRoomId, Long senderId, String content) {
-
         if (chatRoomId == null || senderId == null) {
             throw new IllegalArgumentException("Chat Room ID or Sender ID must not be null.");
         }
+
         String senderName = userService.getUserNameById(senderId);
 
         // Redis에 저장
-        ChatMessage chatMessage = new ChatMessage(ChatMessage.MessageType.TALK, chatRoomId.toString(), senderId, senderName, content, LocalDateTime.now());
+        ChatMessage chatMessage = new ChatMessage(
+                ChatMessage.MessageType.TALK, chatRoomId.toString(),
+                senderId, senderName, content, LocalDateTime.now()
+        );
         String redisKey = "chatroom:" + chatRoomId + ":messages";
         redisTemplate.opsForZSet().add(redisKey, chatMessage, System.currentTimeMillis());
 
@@ -46,8 +49,9 @@ public class MessageService {
                 .sentAt(chatMessage.getSendAt())
                 .build();
 
-        messageRepository.save(messageEntity); // JPA 저장
+        messageRepository.save(messageEntity);
     }
+
 
 
     /**

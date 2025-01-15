@@ -1,20 +1,25 @@
 package com.example.chating.Dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Data
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChatMessage {
+public class ChatMessage implements Serializable {
     private MessageType type;
     private String roomId;
     private Long sender;
     private String senderName; // 사용자 이름 필드 추가
     private String content;
     private LocalDateTime sendAt;
+    @JsonProperty("isRead") // JSON 직렬화/역직렬화 시 "isRead"로 처리
+    @JsonAlias("read") // JSON에서 "read" 필드도 "isRead"로 매핑
     private boolean isRead; // 메시지 읽음 여부
     private int readByUsersCount; // 메시지를 읽은 사용자 수 추가
 
