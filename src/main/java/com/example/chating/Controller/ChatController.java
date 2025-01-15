@@ -35,7 +35,7 @@ public class ChatController {
     @PostMapping("/rooms")
     public ResponseEntity<ChatRoom> createChatRoom(
             @RequestHeader("Authorization") String token,
-            @RequestBody String name) {
+            @RequestParam String name) {
         Long userId = extractUserIdFromToken(token); // JWT 토큰에서 사용자 ID 추출
         ChatRoom chatRoom = chatRoomService.createChatRoom(name); // 채팅방 생성 로직 호출
         return ResponseEntity.ok(chatRoom); // 생성된 채팅방 반환
