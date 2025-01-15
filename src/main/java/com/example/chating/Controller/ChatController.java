@@ -1,6 +1,8 @@
 package com.example.chating.Controller;
 
+import com.example.chating.Dto.MessageDto;
 import com.example.chating.domain.chat.ChatRoom;
+import com.example.chating.domain.User;
 import com.example.chating.Dto.ChatMessage;
 import com.example.chating.Service.ChatRoomService;
 import com.example.chating.Service.MessageService;
@@ -93,24 +95,22 @@ public class ChatController {
     }
 
     /**
-     * 메시지 전송
-     * - 특정 채팅방에 메시지를 전송합니다.
+     * 채팅방 사용자 조회
+     * - 특정 채팅방에 있는 사용자들을 조회합니다.
      *
      * @param token Authorization 헤더에 포함된 JWT 토큰
-     * @param messageDto 메시지 정보 (채팅방 ID, 메시지 내용 등)
-     * @return 메시지 전송 결과
+     * @param roomId 채팅방 id
+     * @return 사용자 조회
      */
-//    @Operation(summary = "메시지 전송", description = "지정된 채팅방에 메시지를 전송합니다.")
-//    @PostMapping("/messages")
-//    public ResponseEntity<Void> sendMessage(
-//            @RequestHeader("Authorization") String token,
-//            @RequestBody MessageDto messageDto) {
-//        Long senderId = extractUserIdFromToken(token); // JWT 토큰에서 사용자 ID 추출
-//        messageService.saveMessage(messageDto.getChatRoomId(), senderId, messageDto.getContent()); // 메시지 저장
-//        // 최신 활동 시간 업데이트
-//        chatRoomService.updateChatRoomActivity(messageDto.getChatRoomId());
-//        return ResponseEntity.ok().build(); // 메시지 전송 성공 응답 반환
-//    }
+    @Operation(summary = "채팅방 사용자 조회 ", description = "특정 채팅방에 있는 사용자들을 조회합니다. ")
+    @GetMapping("/rooms/{roomId}")
+    public ResponseEntity<List<User>> sendMessage(
+            @RequestHeader("Authorization") String token,
+            @PathVariable Long roomId) {
+        List <User> userList = chatRoomService.getUserByRoomId(roomId);
+
+        return ResponseEntity.ok(userList); // 성공 응답 반환
+    }
 
     /**
      * 메시지 조회

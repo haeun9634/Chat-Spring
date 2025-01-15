@@ -201,7 +201,10 @@ public class ChatRoomService {
                 .collect(Collectors.toList());
     }
 
-
+    //채팅방에 있는 사용자 조회
+    public List<User> getUserByRoomId(Long roomId){
+        return userChatRoomRepository.findUsersByChatRoomId(roomId);
+    }
 
 
     // 채팅방 ID로 채팅방 정보 조회
