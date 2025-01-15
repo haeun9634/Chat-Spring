@@ -10,5 +10,6 @@ import java.util.List;
 
 @Repository
 public interface MessageRepository extends JpaRepository<Message, Long> {
-    Page<Message> findByChatRoomId(Long chatRoomId, Pageable pageable);  // Page<Message> 반환
+    Page<Message> findByChatRoomId(Long chatRoomId, Pageable pageable);  // Pageable 사용
+    List<Message> findByChatRoomId(Long chatRoomId);  // 전체 조회
 }

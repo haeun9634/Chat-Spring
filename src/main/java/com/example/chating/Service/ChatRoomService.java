@@ -1,14 +1,23 @@
 package com.example.chating.Service;
 
+import com.example.chating.Repository.ChatRoomRepository;
+import com.example.chating.Repository.MessageRepository;
+import com.example.chating.Repository.UserChatRoomRepository;
+import com.example.chating.domain.User;
 import com.example.chating.domain.chat.ChatRoom;
+import com.example.chating.domain.chat.Message;
+import com.example.chating.domain.chat.UserChatRoom;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -16,35 +25,70 @@ import java.util.stream.Collectors;
 public class ChatRoomService {
 
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ChatRoomRepository chatRoomRepository; // DB 저장소
+    private final UserService userService;
+    private final UserChatRoomRepository userChatRoomRepository;
+    private final MessageRepository messageRepository;
 
     private static final String CHAT_ROOMS_KEY = "chatrooms";
 
     // 채팅방 생성
+    @Transactional
     public ChatRoom createChatRoom(String name) {
-        ChatRoom chatRoom = new ChatRoom();
-        chatRoom.setName(name);
+        // 1. 새로운 ChatRoom 생성
+        ChatRoom chatRoom = ChatRoom.builder()
+                .name(name)
+                .createdAt(LocalDateTime.now())
+                .build();
 
-        // 채팅방 ID 생성
-        Long id = redisTemplate.opsForValue().increment("chatroom:id:counter");
-        chatRoom.setId(id);
+        // 2. DB 저장
+        chatRoom = chatRoomRepository.save(chatRoom);
 
-        // Redis에 채팅방 데이터 저장
-        redisTemplate.opsForHash().put(CHAT_ROOMS_KEY, id.toString(), chatRoom);
-        System.out.println("ChatRoom saved to Redis: " + chatRoom);
-
-        // 저장된 데이터 확인
-        Object savedData = redisTemplate.opsForHash().get(CHAT_ROOMS_KEY, id.toString());
-        System.out.println("Retrieved from Redis: " + savedData);
+        // 3. Redis 저장
+        redisTemplate.opsForHash().put(CHAT_ROOMS_KEY, chatRoom.getId().toString(), chatRoom);
 
         return chatRoom;
     }
 
 
-
     // 채팅방 삭제
+    @Transactional
     public void deleteChatRoom(Long chatRoomId) {
+        // 1. 연관된 메시지 삭제
+        List<Message> messages = messageRepository.findByChatRoomId(chatRoomId);
+        if (!messages.isEmpty()) {
+            messageRepository.deleteAll(messages);
+        }
+
+        // 2. 연관된 UserChatRoom 삭제 및 Redis 업데이트
+        List<UserChatRoom> userChatRooms = userChatRoomRepository.findByChatRoomId(chatRoomId);
+        if (!userChatRooms.isEmpty()) {
+            // Redis에서 사용자-채팅방 매핑 제거
+            for (UserChatRoom userChatRoom : userChatRooms) {
+                Long userId = userChatRoom.getUser().getId();
+                String userChatRoomsKey = "user:" + userId + ":chatrooms";
+                redisTemplate.opsForSet().remove(userChatRoomsKey, chatRoomId);
+            }
+            // DB에서 연관된 UserChatRoom 삭제
+            userChatRoomRepository.deleteAll(userChatRooms);
+        }
+
+        // 3. Redis에서 채팅방 삭제
         redisTemplate.opsForHash().delete(CHAT_ROOMS_KEY, chatRoomId.toString());
+
+        // 4. Redis의 채팅방 활동 데이터 삭제
+        redisTemplate.opsForZSet().remove(CHAT_ROOM_ACTIVITY_KEY, chatRoomId.toString());
+
+        // 5. DB에서 채팅방 삭제
+        if (chatRoomRepository.existsById(chatRoomId)) {
+            chatRoomRepository.deleteById(chatRoomId);
+        } else {
+            throw new IllegalArgumentException("ChatRoom not found in the database");
+        }
     }
+
+
+
 
     // 사용자 추가
     public void addUserToChatRoom(Long chatRoomId, Long userId) {
@@ -56,45 +100,40 @@ public class ChatRoomService {
         String chatRoomUsersKey = "chatroom:" + chatRoomId + ":users";
         redisTemplate.opsForSet().add(chatRoomUsersKey, userId);
 
+        // DB 저장
+        User user = userService.getUserById(userId);
+        ChatRoom chatRoom = getChatRoomById(chatRoomId);
+
+        UserChatRoom userChatRoom = UserChatRoom.builder()
+                .user(user)
+                .chatRoom(chatRoom)
+                .build();
+
+        userChatRoomRepository.save(userChatRoom);
+
         // 확인 로그 추가
         System.out.println("User " + userId + " added to chat room " + chatRoomId);
     }
-
 
     // 사용자 제거
     public void removeUserFromChatRoom(Long chatRoomId, Long userId) {
         String userChatRoomsKey = "user:" + userId + ":chatrooms";
         String chatRoomUsersKey = "chatroom:" + chatRoomId + ":users";
 
-        // 사용자와 채팅방 간 매핑 데이터 제거
+        // 사용자와 채팅방 간 매핑 데이터 제거 (Redis)
         redisTemplate.opsForSet().remove(userChatRoomsKey, chatRoomId);
         redisTemplate.opsForSet().remove(chatRoomUsersKey, userId);
+
+        // DB에서 제거
+        User user = userService.getUserById(userId);
+        ChatRoom chatRoom = getChatRoomById(chatRoomId);
+
+        UserChatRoom userChatRoom = userChatRoomRepository.findByUserAndChatRoom(user, chatRoom)
+                .orElseThrow(() -> new IllegalArgumentException("UserChatRoom not found"));
+
+        userChatRoomRepository.delete(userChatRoom);
     }
 
-//    // 사용자 채팅방 목록
-//    public List<ChatRoom> getChatRoomsByUser(Long userId) {
-//        String userChatRoomsKey = "user:" + userId + ":chatrooms";
-//        Set<Object> chatRoomIds = redisTemplate.opsForSet().members(userChatRoomsKey);
-//
-//        if (chatRoomIds == null || chatRoomIds.isEmpty()) {
-//            System.out.println("No chat rooms found for user: " + userId);
-//            return List.of();
-//        }
-//
-//        return chatRoomIds.stream()
-//                .map(id -> {
-//                    Object chatRoomObj = redisTemplate.opsForHash().get(CHAT_ROOMS_KEY, id.toString());
-//                    System.out.println("Fetched ChatRoom from Redis: " + chatRoomObj);
-//                    if (chatRoomObj instanceof ChatRoom) {
-//                        return (ChatRoom) chatRoomObj;
-//                    } else {
-//                        System.out.println("Invalid ChatRoom data for ID: " + id);
-//                        return null;
-//                    }
-//                })
-//                .filter(chatRoom -> chatRoom != null)
-//                .collect(Collectors.toList());
-//    }
 
     private static final String CHAT_ROOM_ACTIVITY_KEY = "chatroom:activity";  // 채팅방 활동 시간을 저장하는 ZSet 키
 
@@ -110,65 +149,77 @@ public class ChatRoomService {
         // Redis에서 사용자가 참여한 채팅방 ID 가져오기
         Set<Object> userChatRoomIdsSet = redisTemplate.opsForSet().members(userChatRoomsKey);
 
-        // 참여 중인 채팅방이 없으면 빈 리스트 반환
+        // Redis에 데이터가 없으면 DB에서 조회
         if (userChatRoomIdsSet == null || userChatRoomIdsSet.isEmpty()) {
-            return List.of(); // 빈 리스트 반환
+            List<UserChatRoom> userChatRooms = userChatRoomRepository.findByUserId(userId);
+            if (userChatRooms.isEmpty()) {
+                return List.of(); // 빈 리스트 반환
+            }
+
+            // DB에서 조회한 채팅방 ID를 Redis에 저장
+            userChatRoomIdsSet = userChatRooms.stream()
+                    .map(userChatRoom -> userChatRoom.getChatRoom().getId())
+                    .collect(Collectors.toSet());
+
+            userChatRoomIdsSet.forEach(chatRoomId -> redisTemplate.opsForSet().add(userChatRoomsKey, chatRoomId));
         }
 
-        // Set<Object>를 List<String>으로 변환
-        List<String> userChatRoomIds = userChatRoomIdsSet.stream()
-                .map(Object::toString)  // Object -> String 변환
+        // Set<Object>를 List<Long>으로 변환
+        List<Long> userChatRoomIds = userChatRoomIdsSet.stream()
+                .map(id -> Long.valueOf(id.toString()))  // Object -> Long 변환
                 .collect(Collectors.toList());
 
-        System.out.println("사용자가 참여한 채팅방 ID: " + userChatRoomIds);
+        // DB에서 유효한 채팅방 ID 필터링
+        List<Long> validChatRoomIds = userChatRoomIds.stream()
+                .filter(chatRoomRepository::existsById)  // DB에 존재하는 채팅방만 필터링
+                .collect(Collectors.toList());
+
+        System.out.println("사용자가 참여한 유효한 채팅방 ID: " + validChatRoomIds);
 
         // 최신 활동 기준으로 정렬된 채팅방 ID 가져오기
         Set<Object> sortedChatRoomIdsSet = redisTemplate.opsForZSet()
                 .reverseRangeByScore(CHAT_ROOM_ACTIVITY_KEY, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY);
 
-        if (sortedChatRoomIdsSet == null || sortedChatRoomIdsSet.isEmpty()) {
-            sortedChatRoomIdsSet = Set.of(); // 빈 Set 반환
-        }
-
-        // Set<Object>를 List<String>으로 변환
-        List<String> sortedChatRoomIds = sortedChatRoomIdsSet.stream()
-                .map(Object::toString)
-                .collect(Collectors.toList());
+        List<Long> sortedChatRoomIds = (sortedChatRoomIdsSet == null || sortedChatRoomIdsSet.isEmpty())
+                ? List.of()
+                : sortedChatRoomIdsSet.stream().map(id -> Long.valueOf(id.toString())).collect(Collectors.toList());
 
         System.out.println("정렬된 채팅방 ID: " + sortedChatRoomIds);
 
-        // 정렬된 채팅방 ID를 먼저 추가하고 나머지 사용자 채팅방 ID를 추가
-        List<String> finalChatRoomIds = new ArrayList<>();
-
-        // 1. 정렬된 채팅방 ID 중 사용자 채팅방 ID와 교집합 부분을 먼저 추가
-        sortedChatRoomIds.stream()
-                .filter(userChatRoomIds::contains)  // 사용자 채팅방 목록에 있는 정렬된 채팅방 ID만 추가
-                .forEach(finalChatRoomIds::add);
-
-        // 2. 나머지 사용자 채팅방 ID 추가 (중복 제거)
-        userChatRoomIds.stream()
-                .filter(id -> !finalChatRoomIds.contains(id))  // 이미 추가된 ID는 제외
-                .forEach(finalChatRoomIds::add);
+        // 최종 정렬된 채팅방 ID 리스트 생성
+        List<Long> finalChatRoomIds = new ArrayList<>();
+        sortedChatRoomIds.stream().filter(validChatRoomIds::contains).forEach(finalChatRoomIds::add);
+        validChatRoomIds.stream().filter(id -> !finalChatRoomIds.contains(id)).forEach(finalChatRoomIds::add);
 
         System.out.println("최종 정렬된 채팅방 ID: " + finalChatRoomIds);
 
         // 최종 정렬된 채팅방 ID를 기반으로 채팅방 객체 가져오기
         return finalChatRoomIds.stream()
-                .map(id -> redisTemplate.opsForHash().get(CHAT_ROOMS_KEY, id)) // 각 채팅방 ID로부터 채팅방 객체 조회
-                .filter(chatRoomObj -> chatRoomObj instanceof ChatRoom)  // ChatRoom 객체만 필터링
-                .map(chatRoomObj -> (ChatRoom) chatRoomObj)  // ChatRoom 타입으로 변환
-                .collect(Collectors.toList());  // 리스트로 반환
+                .map(chatRoomRepository::findById)  // DB에서 채팅방 조회
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toList());
     }
+
 
 
 
     // 채팅방 ID로 채팅방 정보 조회
     public ChatRoom getChatRoomById(Long chatRoomId) {
+        // Redis에서 채팅방 정보 조회
         Object chatRoomObj = redisTemplate.opsForHash().get(CHAT_ROOMS_KEY, chatRoomId.toString());
         if (chatRoomObj instanceof ChatRoom) {
             return (ChatRoom) chatRoomObj;
         }
-        return null;
+
+        // Redis에 없으면 DB에서 조회
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new IllegalArgumentException("ChatRoom not found"));
+
+        // DB에서 가져온 데이터를 Redis에 저장
+        redisTemplate.opsForHash().put(CHAT_ROOMS_KEY, chatRoomId.toString(), chatRoom);
+
+        return chatRoom;
     }
 
 

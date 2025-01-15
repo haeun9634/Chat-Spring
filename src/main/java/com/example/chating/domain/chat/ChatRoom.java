@@ -15,7 +15,6 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class ChatRoom implements Serializable {
-    private static final long serialVersionUID = 1L; // 직렬화 버전 관리
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,6 +27,9 @@ public class ChatRoom implements Serializable {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+//    @Version // 낙관적 락을 위한 필드
+//    private Long version;
 
     @Override
     public String toString() {

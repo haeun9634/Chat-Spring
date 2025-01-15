@@ -2,7 +2,7 @@ package com.example.chating.converter;
 
 import com.example.chating.Service.ChatRoomService;
 import com.example.chating.Service.UserService;
-import com.example.chating.domain.chat.ChatMessage;
+import com.example.chating.Dto.ChatMessage;
 import com.example.chating.domain.chat.Message;
 
 public class MessageConverter {

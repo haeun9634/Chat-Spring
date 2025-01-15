@@ -1,6 +1,6 @@
 package com.example.chating.global;
 
-import com.example.chating.domain.chat.ChatMessage;
+import com.example.chating.Dto.ChatMessage;
 import com.example.chating.Redis.RedisPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

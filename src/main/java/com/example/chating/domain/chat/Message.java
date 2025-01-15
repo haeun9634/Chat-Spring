@@ -37,7 +37,24 @@ public class Message {
     @ManyToMany
     private Set<User> readByUsers = new HashSet<>();
 
+    private boolean isRead = false; // 메시지 읽음 상태 필드 추가
+
+    // 읽은 사용자 추가
     public void addReadByUser(User user) {
         this.readByUsers.add(user);
     }
+
+    // setIsRead 메서드 추가
+    public void setIsRead(boolean isRead) {
+        this.isRead = isRead;
+    }
+
+    // setReadByUsersCount 메서드 추가
+    public void setReadByUsersCount(int readByUsersCount) {
+        // 이 메서드는 readByUsersCount 값을 설정합니다.
+        // 이 메서드를 통해 외부에서 읽은 사용자 수를 업데이트할 수 있습니다.
+        this.readByUsersCount = readByUsersCount;
+    }
+
+    private int readByUsersCount; // 읽은 사용자 수를 추적하는 필드 추가
 }

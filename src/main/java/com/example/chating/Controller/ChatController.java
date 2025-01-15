@@ -1,8 +1,7 @@
 package com.example.chating.Controller;
 
 import com.example.chating.domain.chat.ChatRoom;
-import com.example.chating.domain.chat.ChatMessage;
-import com.example.chating.Dto.MessageDto;
+import com.example.chating.Dto.ChatMessage;
 import com.example.chating.Service.ChatRoomService;
 import com.example.chating.Service.MessageService;
 import com.example.chating.global.TokenProvider;
