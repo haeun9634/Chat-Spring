@@ -26,7 +26,7 @@ public class MessageService {
     private final UserService userService;
 
     // 메시지 저장
-    public void saveMessage(Long chatRoomId, Long senderId, String content) {
+    public ChatMessage saveMessage(Long chatRoomId, Long senderId, String content) {
         if (chatRoomId == null || senderId == null) {
             throw new IllegalArgumentException("Chat Room ID or Sender ID must not be null.");
         }
@@ -56,6 +56,8 @@ public class MessageService {
         );
         String redisKey = "chatroom:" + chatRoomId + ":messages";
         redisTemplate.opsForZSet().add(redisKey, chatMessage, System.currentTimeMillis());
+
+        return chatMessage;
     }
 
 

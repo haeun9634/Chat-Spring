@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 
 @Data
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatMessage implements Serializable {
