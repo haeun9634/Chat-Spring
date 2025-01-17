@@ -1,5 +1,6 @@
 package com.example.chating.Service;
 
+import com.example.chating.Dto.TokenResponseDTO;
 import com.example.chating.domain.User;
 import com.example.chating.Dto.LoginRequestDTO;
 import com.example.chating.Dto.LoginResponseDTO;
@@ -41,13 +42,13 @@ public class AuthService {
             User user = optionalUser.get();
             if (passwordEncoder.matches(loginRequestDTO.getPassword(), user.getPassword())) {
                 String token = tokenProvider.generateToken(user.getName(), user.getId());
-                return new LoginResponseDTO(token);
+                return new LoginResponseDTO(token, user.getId(), user.getName());
             }
         }
         throw new RuntimeException("Invalid username or password");
     }
 
-    public LoginResponseDTO refreshToken(String token) {
+    public TokenResponseDTO refreshToken(String token) {
         // 토큰에서 클레임 추출
         Claims claims = tokenProvider.extractClaims(token);
 
@@ -61,6 +62,6 @@ public class AuthService {
 
         // 새 토큰 발급
         String newToken = tokenProvider.generateToken(user.getName(), user.getId());
-        return new LoginResponseDTO(newToken);
+        return new TokenResponseDTO(newToken);
     }
 }
