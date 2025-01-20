@@ -2,6 +2,7 @@ package com.example.chating.Controller;
 
 import com.example.chating.Dto.LoginRequestDTO;
 import com.example.chating.Dto.LoginResponseDTO;
+import com.example.chating.Dto.TokenResponseDTO;
 import com.example.chating.Service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +27,7 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public LoginResponseDTO refresh(@RequestHeader("Authorization") String token) {
+    public TokenResponseDTO refresh(@RequestHeader("Authorization") String token) {
         if (token.startsWith("Bearer ")) {
             token = token.substring(7);
         }

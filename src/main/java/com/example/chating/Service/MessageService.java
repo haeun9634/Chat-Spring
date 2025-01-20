@@ -26,28 +26,41 @@ public class MessageService {
     private final UserService userService;
 
     // 메시지 저장
-    public void saveMessage(Long chatRoomId, Long senderId, String content) {
-
+    public ChatMessage saveMessage(Long chatRoomId, Long senderId, String content) {
         if (chatRoomId == null || senderId == null) {
             throw new IllegalArgumentException("Chat Room ID or Sender ID must not be null.");
         }
-        String senderName = userService.getUserNameById(senderId);
 
-        // Redis에 저장
-        ChatMessage chatMessage = new ChatMessage(ChatMessage.MessageType.TALK, chatRoomId.toString(), senderId, senderName, content, LocalDateTime.now());
-        String redisKey = "chatroom:" + chatRoomId + ":messages";
-        redisTemplate.opsForZSet().add(redisKey, chatMessage, System.currentTimeMillis());
+        String senderName = userService.getUserNameById(senderId);
 
         // 데이터베이스에 저장
         Message messageEntity = Message.builder()
                 .chatRoom(chatRoomService.getChatRoomById(chatRoomId))
                 .sender(userService.getUserById(senderId))
                 .content(content)
-                .sentAt(chatMessage.getSendAt())
+                .sentAt(LocalDateTime.now())
                 .build();
+        messageRepository.save(messageEntity);
 
-        messageRepository.save(messageEntity); // JPA 저장
+        // Redis에 저장 (DB에서 생성된 ID 포함)
+        ChatMessage chatMessage = new ChatMessage(
+                messageEntity.getId(), // DB에서 생성된 ID 사용
+                ChatMessage.MessageType.TALK,
+                chatRoomId.toString(),
+                senderId,
+                senderName,
+                content,
+                messageEntity.getSentAt(),
+                0,
+                false
+        );
+        String redisKey = "chatroom:" + chatRoomId + ":messages";
+        redisTemplate.opsForZSet().add(redisKey, chatMessage, System.currentTimeMillis());
+
+        return chatMessage;
     }
+
+
 
 
     /**
@@ -100,7 +113,7 @@ public class MessageService {
 
                         // ChatMessage 업데이트
                         chatMessage.setReadByUsersCount(readByUsersCount);
-                        chatMessage.setIsRead(true);
+                        chatMessage.setRead(true);
 
                         // Redis에 업데이트된 ChatMessage 저장
                         redisTemplate.opsForZSet().add(chatRoomMessagesKey, chatMessage, System.currentTimeMillis());
@@ -109,37 +122,8 @@ public class MessageService {
     }
 
 
-
-    // 메시지 읽음 처리
-    public void markMessageAsRead(Long messageId, Long userId) {
-        // 메시지를 읽은 사용자 추가
-        Message message = messageRepository.findById(messageId)
-                .orElseThrow(() -> new IllegalArgumentException("Message not found"));
-
-        User user = userService.getUserById(userId);
-
-        // 메시지를 읽은 사용자 추가
-        message.addReadByUser(user);
-        message.setIsRead(true);  // 메시지 읽음 처리
-
-        messageRepository.save(message); // 변경된 메시지를 저장
-
-        // Redis에서 읽은 사용자 정보 업데이트
-        String key = "message:" + messageId + ":readBy";
-
-        // Redis에 사용자 ID를 추가하고, 읽은 사용자 수 갱신
-        redisTemplate.opsForSet().add(key, userId);
-
-        // Redis에 저장된 읽은 사용자 수를 가져와서 카운트 값 갱신
-        Set<Object> readByUsers = redisTemplate.opsForSet().members(key);
-        int readByUsersCount = (readByUsers != null) ? readByUsers.size() : 0;
-
-        // 읽은 사용자 수를 ChatMessage 객체에 업데이트
-        message.setReadByUsersCount(readByUsersCount);
-    }
-
-    //메시지 조회
-    public List<ChatMessage> getMessagesByChatRoom(Long chatRoomId, int page, int size) {
+    // 메시지 조회와 읽음 처리
+    public List<ChatMessage> getMessagesByChatRoom(Long chatRoomId, Long userId, int page, int size) {
         String redisKey = "chatroom:" + chatRoomId + ":messages";
         Set<Object> redisMessages = redisTemplate.opsForZSet().range(redisKey, 0, -1);
 
@@ -148,14 +132,36 @@ public class MessageService {
             return redisMessages.stream()
                     .map(obj -> (ChatMessage) obj)
                     .map(chatMessage -> {
-                        // 읽은 사용자 수 계산
-                        String key = "message:" + chatMessage.getRoomId() + ":readBy";
-                        Set<Object> readByUsers = redisTemplate.opsForSet().members(key);
-                        int readByUsersCount = (readByUsers != null) ? readByUsers.size() : 0;
-                        chatMessage.setReadByUsersCount(readByUsersCount);
+                        // Redis에서 읽은 사용자 정보 확인 및 읽음 처리
+                        String messageKey = "message:" + chatMessage.getRoomId() + ":readBy";
+                        Set<Object> readByUsers = redisTemplate.opsForSet().members(messageKey);
 
-                        // 메시지 읽음 여부 확인 (redis나 db에서 값을 확인하여 설정)
-                        chatMessage.setIsRead(readByUsersCount > 0); // 예: 읽은 사용자 수가 0보다 크면 true로 설정
+                        // 사용자가 메시지를 읽지 않은 경우 읽음 처리
+                        if (readByUsers == null || !readByUsers.contains(userId)) {
+                            redisTemplate.opsForSet().add(messageKey, userId);
+                            int updatedReadCount = (readByUsers == null ? 0 : readByUsers.size()) + 1;
+                            chatMessage.setReadByUsersCount(updatedReadCount);
+                            chatMessage.setRead(true);
+
+                            // Redis에 업데이트된 메시지 저장
+                            redisTemplate.opsForZSet().add(redisKey, chatMessage, System.currentTimeMillis());
+
+                            // 데이터베이스 업데이트
+                            Message dbMessage = messageRepository.findById(Long.valueOf(chatMessage.getId()))
+                                    .orElse(null);
+                            if (dbMessage != null) {
+                                User user = userService.getUserById(userId);
+                                dbMessage.addReadByUser(user);
+                                dbMessage.setIsRead(true);
+                                messageRepository.save(dbMessage);
+                            }
+                        } else {
+                            // 사용자가 이미 읽은 경우
+                            int readByUsersCount = (readByUsers != null) ? readByUsers.size() : 0;
+                            chatMessage.setReadByUsersCount(readByUsersCount);
+                            chatMessage.setRead(true);
+                        }
+
                         return chatMessage;
                     })
                     .collect(Collectors.toList());
@@ -167,24 +173,32 @@ public class MessageService {
 
         return dbMessages.stream()
                 .map(message -> {
-                    int readByUsersCount = message.getReadByUsers().size(); // 데이터베이스에서 읽은 사용자 수 계산
-                    boolean isRead = readByUsersCount > 0; // 읽음 여부 설정
+                    int readByUsersCount = message.getReadByUsers().size();
+                    boolean isRead = readByUsersCount > 0;
+
+                    // 사용자가 메시지를 읽지 않은 경우 읽음 처리
+                    if (!message.getReadByUsers().contains(userId)) {
+                        User user = userService.getUserById(userId);
+                        message.addReadByUser(user);
+                        message.setIsRead(true);
+                        messageRepository.save(message); // DB 업데이트
+                        readByUsersCount++;
+                        isRead = true;
+                    }
 
                     return new ChatMessage(
                             ChatMessage.MessageType.TALK,
                             message.getChatRoom().getId().toString(),
                             message.getSender().getId(),
-                            message.getSender().getName(), // 사용자 이름
+                            message.getSender().getName(),
                             message.getContent(),
                             message.getSentAt(),
-                            readByUsersCount, // 읽은 사용자 수
-                            isRead // 읽음 상태 추가
+                            readByUsersCount,
+                            isRead
                     );
                 })
                 .collect(Collectors.toList());
     }
-
-
 
 
 }
