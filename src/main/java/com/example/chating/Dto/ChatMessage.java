@@ -41,6 +41,7 @@ public class ChatMessage implements Serializable {
     // 생성자 (id 없이)
     public ChatMessage(MessageType type, String roomId, Long sender, String senderName, String content, LocalDateTime sendAt, int readByUsersCount, boolean isRead) {
         this(null, type, roomId, sender, senderName, content, sendAt, readByUsersCount, isRead);
+
     }
 
     // 기존 생성자 수정
