@@ -27,7 +27,7 @@ public class ChatMessage {
         this.content = content;
         this.sendAt = sendAt;
         this.readByUsersCount = readByUsersCount;
-        this.isRead = isRead;  // 읽음 여부 설정
+        this.isRead = isRead;
     }
 
     // 기존 생성자 수정
