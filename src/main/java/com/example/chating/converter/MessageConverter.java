@@ -15,7 +15,6 @@ public class MessageConverter {
 
     public static ChatMessage toChatMessage(MessageDto dto) {
         return ChatMessage.builder()
-                .id(null)
                 .type(ChatMessage.MessageType.TALK)
                 .roomId(dto.getChatRoomId().toString())
                 .sender(dto.getSenderId())

@@ -130,7 +130,7 @@ public class ChatController {
             @RequestParam(defaultValue = "20") int size // 페이지 크기 (기본값: 20)
     ) {
         Long userId = extractUserIdFromToken(token); // JWT 토큰에서 사용자 ID 추출
-        List<ChatMessage> messages = messageService.getMessagesByChatRoom(roomId,userId, page, size);
+        List<ChatMessage> messages = messageService.getMessagesByChatRoomWithReadUpdate(roomId,userId, page, size);
         return ResponseEntity.ok(messages);
     }
 
