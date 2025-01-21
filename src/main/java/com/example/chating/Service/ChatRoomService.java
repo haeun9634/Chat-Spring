@@ -1,5 +1,7 @@
 package com.example.chating.Service;
 
+import com.example.chating.Dto.ChatRoomDto;
+import com.example.chating.Dto.UserProfileDto;
 import com.example.chating.Repository.ChatRoomRepository;
 import com.example.chating.Repository.MessageRepository;
 import com.example.chating.Repository.UserChatRoomRepository;
@@ -9,6 +11,8 @@ import com.example.chating.domain.chat.Message;
 import com.example.chating.domain.chat.UserChatRoom;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -140,7 +144,7 @@ public class ChatRoomService {
     }
 
     // 사용자 채팅방 목록 (최신 활동 기준 정렬)
-    public List<ChatRoom> getChatRoomsByUser(Long userId) {
+    public List<ChatRoomDto> getChatRoomsByUser(Long userId) {
         String userChatRoomsKey = "user:" + userId + ":chatrooms";
 
         // Redis에서 사용자가 참여한 채팅방 ID 가져오기
@@ -189,11 +193,44 @@ public class ChatRoomService {
         sortedChatRoomIds.stream().filter(validChatRoomIds::contains).forEach(finalChatRoomIds::add);
         validChatRoomIds.stream().filter(id -> !finalChatRoomIds.contains(id)).forEach(finalChatRoomIds::add);
 
+        // 채팅방 DTO 리스트 생성
         return finalChatRoomIds.stream()
-                .map(chatRoomRepository::findById)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
+                .map(chatRoomId -> {
+                    ChatRoom chatRoom = getChatRoomById(chatRoomId);
+
+                    // 최신 메시지 조회
+                    String latestMessage = getLatestMessageContentFromDb(chatRoomId);
+
+                    // 사용자 프로필 조회
+                    List<UserProfileDto> userProfiles = getUserProfilesByChatRoomId(chatRoomId);
+
+                    // ChatRoomDto 생성
+                    return new ChatRoomDto(chatRoom, latestMessage, userProfiles);
+                })
                 .collect(Collectors.toList());
+    }
+
+    private List<UserProfileDto> getUserProfilesByChatRoomId(Long chatRoomId) {
+        List<User> users = userChatRoomRepository.findUsersByChatRoomId(chatRoomId);
+
+        return users.stream()
+                .map(user -> new UserProfileDto(
+                        user.getId(),
+                        user.getName(),
+                        user.getEmoji() // 프로필 이미지 필드
+                ))
+                .collect(Collectors.toList());
+    }
+
+
+    private String getLatestMessageContentFromDb(Long chatRoomId) {
+        Pageable pageable = PageRequest.of(0, 1); // 최신 메시지 하나만 가져옴
+        List<Message> messages = messageRepository.findLatestMessageByChatRoomId(chatRoomId, pageable);
+
+        return messages.stream()
+                .findFirst()
+                .map(Message::getContent) // 메시지 내용만 반환
+                .orElse(null);
     }
 
 
