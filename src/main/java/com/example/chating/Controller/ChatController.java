@@ -2,6 +2,8 @@ package com.example.chating.Controller;
 
 import com.example.chating.Dto.ChatRoomDto;
 import com.example.chating.Dto.MessageDto;
+import com.example.chating.Repository.UserRepository;
+import com.example.chating.domain.MessageType;
 import com.example.chating.domain.chat.ChatRoom;
 import com.example.chating.domain.User;
 import com.example.chating.Dto.ChatMessage;
@@ -11,8 +13,10 @@ import com.example.chating.global.TokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -23,6 +27,7 @@ public class ChatController {
     private final ChatRoomService chatRoomService; // 채팅방 관리 서비스
     private final MessageService messageService; // 메시지 관리 서비스
     private final TokenProvider tokenProvider; // JWT 토큰 관련 유틸리티
+    private final UserRepository userRepository;
 
     /**
      * 채팅방 생성
@@ -38,6 +43,7 @@ public class ChatController {
             @RequestHeader("Authorization") String token,
             @RequestParam String name) {
         Long userId = extractUserIdFromToken(token); // JWT 토큰에서 사용자 ID 추출
+        System.out.println(name);
         ChatRoom chatRoom = chatRoomService.createChatRoom(name); // 채팅방 생성 로직 호출
         return ResponseEntity.ok(chatRoom); // 생성된 채팅방 반환
     }
@@ -65,35 +71,53 @@ public class ChatController {
      *
      * @param token Authorization 헤더에 포함된 JWT 토큰
      * @param roomId 사용자 추가 대상 채팅방 ID
+     * @param userId 초대할 사용자 ID
      * @return 추가 결과
      */
-    @Operation(summary = "사용자 채팅방 추가", description = "사용자를 지정된 채팅방에 추가합니다.")
+    @Operation(summary = "사용자 채팅방 추가", description = "관리자가 사용자를 지정된 채팅방에 추가합니다.")
     @PostMapping("/rooms/{roomId}/users")
     public ResponseEntity<Void> addUserToChatRoom(
             @RequestHeader("Authorization") String token,
-            @PathVariable Long roomId) {
-        Long userId = extractUserIdFromToken(token); // JWT 토큰에서 사용자 ID 추출
+            @PathVariable Long roomId,
+            @RequestParam Long userId) {
         chatRoomService.addUserToChatRoom(roomId, userId); // 채팅방에 사용자 추가
         return ResponseEntity.ok().build(); // 추가 성공 응답 반환
     }
 
-    /**
-     * 사용자 채팅방 제거
-     * - 특정 사용자(userId)를 특정 채팅방(roomId)에서 제거합니다.
-     *
-     * @param token Authorization 헤더에 포함된 JWT 토큰
-     * @param roomId 사용자 제거 대상 채팅방 ID
-     * @return 제거 결과
-     */
+
     @Operation(summary = "사용자 채팅방 제거", description = "사용자를 지정된 채팅방에서 제거합니다.")
     @DeleteMapping("/rooms/{roomId}/users")
     public ResponseEntity<Void> removeUserFromChatRoom(
             @RequestHeader("Authorization") String token,
             @PathVariable Long roomId) {
-        Long userId = extractUserIdFromToken(token); // JWT 토큰에서 사용자 ID 추출
-        chatRoomService.removeUserFromChatRoom(roomId, userId); // 채팅방에서 사용자 제거
-        return ResponseEntity.noContent().build(); // 제거 성공 응답 반환
+        // 토큰에서 사용자 ID 추출
+        Long userId = extractUserIdFromToken(token);
+
+        // 사용자 이름 조회
+        String userName = userRepository.getUserNameById(userId);
+
+        // 채팅방에서 사용자 제거
+        chatRoomService.removeUserFromChatRoom(roomId, userId);
+
+        // 퇴장 메시지 WebSocket으로 브로드캐스트
+        handleExitMessage(roomId, userId, userName);
+
+        return ResponseEntity.noContent().build();
+    }   private final SimpMessagingTemplate messagingTemplate;
+
+    public void handleExitMessage(Long roomId, Long senderId, String senderName) {
+        ChatMessage exitMessage = new ChatMessage(
+                MessageType.EXIT,
+                roomId.toString(),
+                senderId,
+                senderName,
+                senderName + "님이 퇴장하셨습니다.",
+                LocalDateTime.now()
+        );
+        messagingTemplate.convertAndSend("/topic/" + roomId, exitMessage);
     }
+
+
 
     /**
      * 채팅방 사용자 조회

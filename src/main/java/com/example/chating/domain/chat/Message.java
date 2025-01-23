@@ -1,5 +1,6 @@
 package com.example.chating.domain.chat;
 
+import com.example.chating.domain.MessageType;
 import com.example.chating.domain.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -38,6 +39,9 @@ public class Message {
     private Set<User> readByUsers = new HashSet<>();
 
     private boolean isRead = false; // 메시지 읽음 상태 필드 추가
+
+    @Enumerated(EnumType.STRING) // ENUM 타입으로 저장
+    private MessageType messageType;
 
     // 읽은 사용자 추가
     public void addReadByUser(User user) {

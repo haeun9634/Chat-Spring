@@ -1,5 +1,6 @@
 package com.example.chating.Dto;
 
+import com.example.chating.domain.MessageType;
 import lombok.*;
 
 @Getter
@@ -12,6 +13,7 @@ public class MessageDto {
     private Long senderId;
     private String content;
     private String senderName;
+    private MessageType messageType;
 
     @Override
     public String toString() {
