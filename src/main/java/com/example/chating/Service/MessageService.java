@@ -3,7 +3,9 @@ package com.example.chating.Service;
 import com.example.chating.Repository.MessageRepository;
 import com.example.chating.Dto.ChatMessage;
 import com.example.chating.domain.chat.Message;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +17,7 @@ import com.example.chating.domain.User;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
@@ -22,10 +25,15 @@ public class MessageService {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final MessageRepository messageRepository;
+    @Autowired
     private final ChatRoomService chatRoomService;
     private final UserService userService;
 
+    private static final String CHAT_ROOM_ACTIVITY_KEY = "chatroom:activity";
+    private static final String CHAT_ROOM_LATEST_MESSAGE_KEY = "chatroom:%s:latestMessage";
+
     // 메시지 저장
+    @Transactional
     public ChatMessage saveMessage(Long chatRoomId, Long senderId, String content) {
         if (chatRoomId == null || senderId == null) {
             throw new IllegalArgumentException("Chat Room ID or Sender ID must not be null.");
@@ -33,7 +41,7 @@ public class MessageService {
 
         String senderName = userService.getUserNameById(senderId);
 
-        // 데이터베이스에 저장
+        // 메시지 저장
         Message messageEntity = Message.builder()
                 .chatRoom(chatRoomService.getChatRoomById(chatRoomId))
                 .sender(userService.getUserById(senderId))
@@ -42,163 +50,107 @@ public class MessageService {
                 .build();
         messageRepository.save(messageEntity);
 
-        // Redis에 저장 (DB에서 생성된 ID 포함)
-        ChatMessage chatMessage = new ChatMessage(
-                messageEntity.getId(), // DB에서 생성된 ID 사용
+        // Redis 업데이트를 트랜잭션 내에서 동기적으로 처리
+        String latestMessageKey = String.format(CHAT_ROOM_LATEST_MESSAGE_KEY, chatRoomId);
+        redisTemplate.opsForValue().set(latestMessageKey, content);
+        redisTemplate.opsForZSet().add(CHAT_ROOM_ACTIVITY_KEY, chatRoomId.toString(), System.currentTimeMillis());
+        System.out.println("Redis 캐시 업데이트 완료");
+
+        return new ChatMessage(
+                messageEntity.getId(),
                 ChatMessage.MessageType.TALK,
                 chatRoomId.toString(),
                 senderId,
                 senderName,
                 content,
-                messageEntity.getSentAt(),
-                0,
-                false
+                messageEntity.getSentAt()
         );
-        String redisKey = "chatroom:" + chatRoomId + ":messages";
-        redisTemplate.opsForZSet().add(redisKey, chatMessage, System.currentTimeMillis());
-
-        return chatMessage;
     }
 
+//    @Transactional
+//    public void updateReadStatus(Long chatRoomId, Long userId) {
+//        User user = userService.getUserById(userId);
+//
+//        // 읽지 않은 메시지 가져오기
+//        List<Message> unreadMessages = messageRepository.findUnreadMessagesByChatRoomIdAndUserId(chatRoomId, userId);
+//        System.out.println("Found unread messages: " + unreadMessages.size()); // 디버깅 로그
+//
+//        // 읽지 않은 메시지 처리
+//        for (Message message : unreadMessages) {
+//            message.addReadByUser(user); // 읽은 사용자 추가
+//            message.setIsRead(true); // 메시지 읽음 처리
+//            message.setReadByUsersCount(message.getReadByUsers().size()); // 읽은 사용자 수 업데이트
+//            System.out.println("Marking message as read: " + message.getId()); // 디버깅 로그
+//        }
+//
+//        // 변경사항 저장
+//        messageRepository.saveAll(unreadMessages);
+//        System.out.println("Saved " + unreadMessages.size() + " unread messages as read."); // 디버깅 로그
+//    }
 
 
 
-    /**
-     * 특정 채팅방 내 모든 메시지를 읽음 처리
-     * - 사용자가 특정 채팅방 내 모든 메시지를 읽음 처리
-     *
-     * @param roomId 채팅방 ID
-     * @param userId 사용자 ID
-     */
-    // 메시지 읽음 처리
-    public void markAllMessagesAsRead(Long roomId, Long userId) {
-        // 해당 채팅방의 모든 메시지 조회 (페이징 없이 모든 메시지 가져오기)
-        Page<Message> pageMessages = messageRepository.findByChatRoomId(roomId, Pageable.unpaged());
-        List<Message> messages = pageMessages.getContent(); // getContent()로 List<Message>로 변환
 
-        // Redis 키 생성 (채팅방의 메시지 목록)
-        String chatRoomMessagesKey = "chatroom:" + roomId + ":messages";
-        Set<Object> redisMessages = redisTemplate.opsForZSet().range(chatRoomMessagesKey, 0, -1);
-
-        // 모든 메시지 읽음 처리
-        for (Message message : messages) {
-            // 읽은 사용자 추가 및 읽음 처리
-            message.addReadByUser(userService.getUserById(userId));
-            message.setIsRead(true);
-
-            // 읽은 사용자 수 업데이트
-            int readByUsersCount = message.getReadByUsers().size();
-            message.setReadByUsersCount(readByUsersCount);
-
-            // 데이터베이스에 저장
-            messageRepository.save(message);
-
-            // Redis에서 읽은 사용자 정보 업데이트
-            String messageKey = "message:" + message.getId() + ":readBy";
-            redisTemplate.opsForSet().add(messageKey, userId);
-        }
-
-        // Redis에 있는 메시지들도 읽음 처리
-        if (redisMessages != null && !redisMessages.isEmpty()) {
-            redisMessages.stream()
-                    .filter(obj -> obj instanceof ChatMessage)
-                    .map(obj -> (ChatMessage) obj)
-                    .forEach(chatMessage -> {
-                        // 읽은 사용자 수 계산
-                        String messageKey = "message:" + chatMessage.getRoomId() + ":readBy";
-                        redisTemplate.opsForSet().add(messageKey, userId);
-
-                        Set<Object> readByUsers = redisTemplate.opsForSet().members(messageKey);
-                        int readByUsersCount = (readByUsers != null) ? readByUsers.size() : 0;
-
-                        // ChatMessage 업데이트
-                        chatMessage.setReadByUsersCount(readByUsersCount);
-                        chatMessage.setRead(true);
-
-                        // Redis에 업데이트된 ChatMessage 저장
-                        redisTemplate.opsForZSet().add(chatRoomMessagesKey, chatMessage, System.currentTimeMillis());
-                    });
-        }
-    }
-
-
-    // 메시지 조회와 읽음 처리
-    public List<ChatMessage> getMessagesByChatRoom(Long chatRoomId, Long userId, int page, int size) {
-        String redisKey = "chatroom:" + chatRoomId + ":messages";
-        Set<Object> redisMessages = redisTemplate.opsForZSet().range(redisKey, 0, -1);
-
-        // Redis에 데이터가 있는 경우
-        if (redisMessages != null && !redisMessages.isEmpty()) {
-            return redisMessages.stream()
-                    .map(obj -> (ChatMessage) obj)
-                    .map(chatMessage -> {
-                        // Redis에서 읽은 사용자 정보 확인 및 읽음 처리
-                        String messageKey = "message:" + chatMessage.getRoomId() + ":readBy";
-                        Set<Object> readByUsers = redisTemplate.opsForSet().members(messageKey);
-
-                        // 사용자가 메시지를 읽지 않은 경우 읽음 처리
-                        if (readByUsers == null || !readByUsers.contains(userId)) {
-                            redisTemplate.opsForSet().add(messageKey, userId);
-                            int updatedReadCount = (readByUsers == null ? 0 : readByUsers.size()) + 1;
-                            chatMessage.setReadByUsersCount(updatedReadCount);
-                            chatMessage.setRead(true);
-
-                            // Redis에 업데이트된 메시지 저장
-                            redisTemplate.opsForZSet().add(redisKey, chatMessage, System.currentTimeMillis());
-
-                            // 데이터베이스 업데이트
-                            Message dbMessage = messageRepository.findById(Long.valueOf(chatMessage.getId()))
-                                    .orElse(null);
-                            if (dbMessage != null) {
-                                User user = userService.getUserById(userId);
-                                dbMessage.addReadByUser(user);
-                                dbMessage.setIsRead(true);
-                                messageRepository.save(dbMessage);
-                            }
-                        } else {
-                            // 사용자가 이미 읽은 경우
-                            int readByUsersCount = (readByUsers != null) ? readByUsers.size() : 0;
-                            chatMessage.setReadByUsersCount(readByUsersCount);
-                            chatMessage.setRead(true);
-                        }
-
-                        return chatMessage;
-                    })
-                    .collect(Collectors.toList());
-        }
-
-        // Redis에 데이터가 없는 경우 -> 데이터베이스에서 페이징 조회
+    // 메시지 조회
+    @Transactional
+    public List<ChatMessage> getMessagesByChatRoomWithReadUpdate(Long chatRoomId, Long userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("sentAt").descending());
         Page<Message> dbMessages = messageRepository.findByChatRoomId(chatRoomId, pageable);
 
-        return dbMessages.stream()
-                .map(message -> {
-                    int readByUsersCount = message.getReadByUsers().size();
-                    boolean isRead = readByUsersCount > 0;
+        // 사용자 객체 가져오기
+        User user = userService.getUserById(userId);
 
-                    // 사용자가 메시지를 읽지 않은 경우 읽음 처리
-                    if (!message.getReadByUsers().contains(userId)) {
-                        User user = userService.getUserById(userId);
-                        message.addReadByUser(user);
-                        message.setIsRead(true);
-                        messageRepository.save(message); // DB 업데이트
-                        readByUsersCount++;
-                        isRead = true;
+        // 메시지 읽음 처리 및 변환
+        List<Message> updatedMessages = dbMessages.stream()
+                .peek(message -> {
+                    // 내가 보낸 메시지는 읽음 처리 안함
+                    if (!message.getSender().getId().equals(userId) && !message.getReadByUsers().contains(user)) {
+                        message.addReadByUser(user); // 읽은 사용자 추가
+                        message.setIsRead(true); // 메시지 읽음 상태 설정
+                        message.setReadByUsersCount(message.getReadByUsers().size());
                     }
-
-                    return new ChatMessage(
-                            ChatMessage.MessageType.TALK,
-                            message.getChatRoom().getId().toString(),
-                            message.getSender().getId(),
-                            message.getSender().getName(),
-                            message.getContent(),
-                            message.getSentAt(),
-                            readByUsersCount,
-                            isRead
-                    );
                 })
                 .collect(Collectors.toList());
+
+        // 변경된 메시지 저장
+        messageRepository.saveAll(updatedMessages);
+
+        // **실시간 저장된 메시지를 추가로 포함**
+        if (!updatedMessages.isEmpty()) {
+            Message latestMessage = updatedMessages.get(0);
+            if (latestMessage.getSentAt().isAfter(LocalDateTime.now().minusSeconds(1))) {
+                updatedMessages.add(latestMessage);
+            }
+        }
+
+        // ChatMessage로 변환
+        return updatedMessages.stream()
+                .map(message -> new ChatMessage(
+                        message.getId(),
+                        ChatMessage.MessageType.TALK,
+                        message.getChatRoom().getId().toString(),
+                        message.getSender().getId(),
+                        message.getSender().getName(),
+                        message.getContent(),
+                        message.getSentAt(),
+                        true,
+                        message.getReadByUsersCount()
+                ))
+                .collect(Collectors.toList());
     }
+
+
+
+    public String getLatestMessageContentFromDb(Long chatRoomId) {
+        Pageable pageable = PageRequest.of(0, 1); // 최신 메시지 하나만 가져옴
+        List<Message> messages = messageRepository.findLatestMessageByChatRoomId(chatRoomId, pageable);
+
+        return messages.stream()
+                .findFirst()
+                .map(Message::getContent) // 메시지 내용만 반환
+                .orElse(null);
+    }
+
 
 
 }

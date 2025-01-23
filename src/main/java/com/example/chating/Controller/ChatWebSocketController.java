@@ -1,7 +1,6 @@
 package com.example.chating.Controller;
 
-import com.example.chating.Dto.ChatMessage;
-import com.example.chating.Dto.MessageDto;
+import com.example.chating.Dto.*;
 import com.example.chating.Service.ChatRoomService;
 import com.example.chating.Service.MessageService;
 import com.example.chating.Service.UserService;
@@ -19,6 +18,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestHeader;
 
+import java.util.*;
+
 @Controller
 @RequiredArgsConstructor
 public class ChatWebSocketController {
@@ -35,29 +36,65 @@ public class ChatWebSocketController {
         // 토큰에서 사용자 ID 추출
         Long senderId = extractUserIdFromToken(token);
         messageDto.setSenderId(senderId);
+
         // 사용자 이름 조회
-        String senderName = userService.getUserNameById(senderId); // UserService에서 사용자 이름 가져오기
+        String senderName = userService.getUserNameById(senderId);
         messageDto.setSenderName(senderName);
 
-        // MessageDto를 ChatMessage로 변환
-        ChatMessage chatMessage = MessageConverter.toChatMessage(messageDto);
-
-        // 메시지 저장 (여기서 DB에 저장되며 ID가 생성됨)
-        ChatMessage savedMessage = messageService.saveMessage(roomId, senderId, chatMessage.getContent());
-
-        // 생성된 ID를 ChatMessage에 설정
-        chatMessage.setId(savedMessage.getId());
+        // 메시지 저장
+        ChatMessage savedMessage = messageService.saveMessage(roomId, senderId, messageDto.getContent());
 
         // 최신 활동 시간 업데이트
         chatRoomService.updateChatRoomActivity(roomId);
 
-        // 메시지 브로커로 전송
-        messagingTemplate.convertAndSend("/topic/" + roomId, chatMessage);
+        // 메시지 브로커로 전송 (실시간 채팅)
+        messagingTemplate.convertAndSend("/topic/" + roomId, savedMessage);
 
-        // 사용자 채팅방 목록 업데이트
+//        // RedisPublisher를 사용해 메시지 발행
+//        redisPublisher.publish("chatroom." + roomId, savedMessage);
+
+        // 사용자 채팅방 목록 업데이트 (ChatRoomDto 생성 후 전송)
         ChatRoom updatedChatRoom = chatRoomService.getChatRoomById(roomId);
-        messagingTemplate.convertAndSend("/topic/chatrooms", updatedChatRoom);
+        String latestMessage = messageService.getLatestMessageContentFromDb(roomId);
+        List<UserProfileDto> userProfiles = chatRoomService.getUserProfilesByChatRoomId(roomId);
+
+        ChatRoomDto chatRoomDto = new ChatRoomDto(updatedChatRoom, latestMessage, userProfiles);
+        messagingTemplate.convertAndSend("/topic/chatrooms", chatRoomDto);
+
+        // 로그 출력
+        System.out.println("Sending ChatMessage: " + savedMessage);
+        System.out.println("Sending ChatRoomDto: " + chatRoomDto);
     }
+
+//    @MessageMapping("/chat/{roomId}/read")
+//    public void updateReadStatus(@DestinationVariable Long roomId, @Payload MessageDto messageDto, @Header("Authorization") String token) {
+//        // 토큰에서 사용자 ID 추출
+//        Long userId = extractUserIdFromToken(token);
+//
+//        // 읽음 처리
+//        messageService.updateReadStatus(roomId, userId);
+//
+//        // 모든 사용자에게 읽음 상태 브로드캐스트
+//        messagingTemplate.convertAndSend("/topic/" + roomId + "/read", new ReadStatusDto(roomId, userId));
+//    }
+
+//    @MessageMapping("/chat/{roomId}/active")
+//    public void handleActiveStatus(
+//            @DestinationVariable Long roomId,
+//            @Payload ActiveStatusDto activeStatus,
+//            @Header("Authorization") String token) {
+//
+//        Long userId = extractUserIdFromToken(token);
+//        boolean isActive = activeStatus.isActive();
+//
+//        chatRoomService.updateUserActiveStatus(roomId, userId, isActive);
+//
+//        System.out.println("User " + userId + " is now " + (isActive ? "active" : "inactive") + " in room " + roomId);
+//    }
+
+
+
+
 
     private Long extractUserIdFromToken(String token) {
         if (token.startsWith("Bearer ")) {

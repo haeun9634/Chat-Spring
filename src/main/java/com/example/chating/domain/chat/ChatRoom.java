@@ -7,6 +7,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -28,8 +30,9 @@ public class ChatRoom implements Serializable {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-//    @Version // 낙관적 락을 위한 필드
-//    private Long version;
+//    // 활성 사용자 목록
+//    @OneToMany(mappedBy = "chatRoom", cascade = CascadeType.ALL, orphanRemoval = true)
+//    private Set<ActiveUser> activeUsers = new HashSet<>();
 
     @Override
     public String toString() {

@@ -1,5 +1,6 @@
 package com.example.chating.Controller;
 
+import com.example.chating.Dto.ChatRoomDto;
 import com.example.chating.Dto.MessageDto;
 import com.example.chating.domain.chat.ChatRoom;
 import com.example.chating.domain.User;
@@ -129,7 +130,7 @@ public class ChatController {
             @RequestParam(defaultValue = "20") int size // 페이지 크기 (기본값: 20)
     ) {
         Long userId = extractUserIdFromToken(token); // JWT 토큰에서 사용자 ID 추출
-        List<ChatMessage> messages = messageService.getMessagesByChatRoom(roomId,userId, page, size);
+        List<ChatMessage> messages = messageService.getMessagesByChatRoomWithReadUpdate(roomId,userId, page, size);
         return ResponseEntity.ok(messages);
     }
 
@@ -142,10 +143,10 @@ public class ChatController {
      */
     @Operation(summary = "사용자 참여 채팅방 조회", description = "사용자가 현재 참여 중인 채팅방 목록을 조회합니다.")
     @GetMapping("/users/rooms")
-    public ResponseEntity<List<ChatRoom>> getUserChatRooms(
+    public ResponseEntity<List<ChatRoomDto>> getUserChatRooms(
             @RequestHeader("Authorization") String token) {
         Long userId = extractUserIdFromToken(token); // JWT 토큰에서 사용자 ID 추출
-        List<ChatRoom> chatRooms = chatRoomService.getChatRoomsByUser(userId); // 참여 중인 채팅방 조회
+        List<ChatRoomDto> chatRooms = chatRoomService.getChatRoomsByUser(userId); // 참여 중인 채팅방 조회
         return ResponseEntity.ok(chatRooms); // 채팅방 목록 반환
     }
 
