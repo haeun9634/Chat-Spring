@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -15,4 +16,8 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     List<Message> findByChatRoomId(Long chatRoomId);  // 전체 조회
     @Query("SELECT m FROM Message m WHERE m.chatRoom.id = :chatRoomId ORDER BY m.sentAt DESC")
     List<Message> findLatestMessageByChatRoomId(Long chatRoomId, Pageable pageable);
+//    @Query("SELECT m FROM Message m " +
+//            "WHERE m.chatRoom.id = :chatRoomId " +
+//            "AND :userId NOT MEMBER OF m.readByUsers")
+//    List<Message> findUnreadMessagesByChatRoomIdAndUserId(@Param("chatRoomId") Long chatRoomId, @Param("userId") Long userId);
 }

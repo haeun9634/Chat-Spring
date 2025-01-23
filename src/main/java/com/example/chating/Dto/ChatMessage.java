@@ -1,5 +1,6 @@
 package com.example.chating.Dto;
 
+import com.example.chating.domain.chat.Message;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
@@ -16,7 +17,7 @@ public class ChatMessage implements Serializable {
     private Long id;
     private MessageType type;
     private String roomId;
-    private Long sender;
+    private Long senderId;
     private String senderName; // 사용자 이름 필드 추가
     private String content;
     private LocalDateTime sendAt;
@@ -27,6 +28,19 @@ public class ChatMessage implements Serializable {
 
     public ChatMessage(Long id,MessageType type, String roomId, Long sender, String senderName, String content, LocalDateTime sendAt) {
         this(id, type, roomId, sender, senderName, content, sendAt, false, 0);
+    }
+
+    // Message 객체에서 ChatMessage로 변환하는 생성자 추가
+    public ChatMessage(Message message) {
+        this.id = message.getId();
+        this.type = MessageType.TALK; // 기본적으로 TALK 타입으로 설정
+        this.roomId = message.getChatRoom().getId().toString();
+        this.senderId = message.getSender().getId();
+        this.senderName = message.getSender().getName();
+        this.content = message.getContent();
+        this.sendAt = message.getSentAt();
+        this.isRead = message.isRead();
+        this.readByUsersCount = message.getReadByUsersCount();
     }
 
 

@@ -2,10 +2,12 @@ package com.example.chating.Service;
 
 import com.example.chating.Dto.ChatRoomDto;
 import com.example.chating.Dto.UserProfileDto;
+
 import com.example.chating.Repository.ChatRoomRepository;
 import com.example.chating.Repository.MessageRepository;
 import com.example.chating.Repository.UserChatRoomRepository;
 import com.example.chating.domain.User;
+
 import com.example.chating.domain.chat.ChatRoom;
 import com.example.chating.domain.chat.Message;
 import com.example.chating.domain.chat.UserChatRoom;
@@ -33,6 +35,7 @@ public class ChatRoomService {
     private final UserService userService;
     private final UserChatRoomRepository userChatRoomRepository;
     private final MessageRepository messageRepository;
+//    private final ActiveUserRepository activeUserRepository;
 
     private static final String CHAT_ROOMS_KEY = "chatrooms";
     private static final String CHAT_ROOM_ACTIVITY_KEY = "chatroom:activity";
@@ -203,8 +206,37 @@ public class ChatRoomService {
                 .map(Message::getContent) // 메시지 내용만 반환
                 .orElse(null);
     }
-
-
+//
+//    @Transactional
+//    public void updateUserActiveStatus(Long roomId, Long userId, boolean isActive) {
+//        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+//                .orElseThrow(() -> new IllegalArgumentException("Chat room not found"));
+//
+//        // 활성 사용자 검색
+//        ActiveUser activeUser = activeUserRepository.findByChatRoomAndUserId(chatRoom, userId)
+//                .orElse(ActiveUser.builder()
+//                        .chatRoom(chatRoom)
+//                        .userId(userId)
+//                        .build());
+//
+//        // 상태 업데이트
+//        activeUser.setActive(isActive);
+//
+//        if (isActive) {
+//            activeUserRepository.save(activeUser);
+//        } else {
+//            activeUserRepository.delete(activeUser);
+//        }
+//    }
+//
+//    public boolean isUserActiveInRoom(Long roomId, Long userId) {
+//        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+//                .orElseThrow(() -> new IllegalArgumentException("Chat room not found"));
+//
+//        return activeUserRepository.findByChatRoomAndUserId(chatRoom, userId)
+//                .map(ActiveUser::isActive)
+//                .orElse(false);
+//    }
 
     public List<UserProfileDto> getUserProfilesByChatRoomId(Long chatRoomId) {
         List<User> users = userChatRoomRepository.findUsersByChatRoomId(chatRoomId);
