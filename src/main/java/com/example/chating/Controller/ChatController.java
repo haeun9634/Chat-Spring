@@ -99,23 +99,24 @@ public class ChatController {
         // 채팅방에서 사용자 제거
         chatRoomService.removeUserFromChatRoom(roomId, userId);
 
-        // 퇴장 메시지 WebSocket으로 브로드캐스트
-        handleExitMessage(roomId, userId, userName);
+//        // 퇴장 메시지 WebSocket으로 브로드캐스트
+//        handleExitMessage(roomId, userId, userName);
 
         return ResponseEntity.noContent().build();
-    }   private final SimpMessagingTemplate messagingTemplate;
-
-    public void handleExitMessage(Long roomId, Long senderId, String senderName) {
-        ChatMessage exitMessage = new ChatMessage(
-                MessageType.EXIT,
-                roomId.toString(),
-                senderId,
-                senderName,
-                senderName + "님이 퇴장하셨습니다.",
-                LocalDateTime.now()
-        );
-        messagingTemplate.convertAndSend("/topic/" + roomId, exitMessage);
     }
+//    private final SimpMessagingTemplate messagingTemplate;
+//
+//    public void handleExitMessage(Long roomId, Long senderId, String senderName) {
+//        ChatMessage exitMessage = new ChatMessage(
+//                MessageType.EXIT,
+//                roomId.toString(),
+//                senderId,
+//                senderName,
+//                senderName + "님이 퇴장하셨습니다.",
+//                LocalDateTime.now()
+//        );
+//        messagingTemplate.convertAndSend("/topic/" + roomId, exitMessage);
+//    }
 
 
 

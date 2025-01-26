@@ -43,8 +43,8 @@ public class ChatWebSocketController {
         String senderName = userService.getUserNameById(senderId);
         messageDto.setSenderName(senderName);
 
-        // 메시지 저장
-        ChatMessage savedMessage = messageService.saveMessage(roomId, senderId, messageDto.getContent(), messageDto.getMessageType());
+//        // 메시지 저장
+//        ChatMessage savedMessage = messageService.saveMessage(roomId, senderId, messageDto.getContent(), messageDto.getMessageType());
 
         // 최신 활동 시간 업데이트
         chatRoomService.updateChatRoomActivity(roomId);
@@ -53,11 +53,11 @@ public class ChatWebSocketController {
 
         switch (messageType) {
             case ENTER: // 사용자가 채팅방에 입장한 경우
-                handleEnterMessage(roomId, senderId, senderName);
+                handleEnterMessage(roomId, messageDto.getContent());
                 break;
 
             case TALK: // 일반 채팅 메시지
-                handleTalkMessage(roomId, savedMessage);
+                handleTalkMessage(roomId, senderId, messageDto);
                 break;
 
             case EXIT: // 사용자가 채팅방에서 나간 경우
@@ -81,19 +81,43 @@ public class ChatWebSocketController {
 //        System.out.println("Sending ChatRoomDto: " + chatRoomDto);
     }
 
-    private void handleEnterMessage(Long roomId, Long senderId, String senderName) {
+    private void handleEnterMessage(Long roomId, String content) {
+        Long inviteId;
+        try {
+            inviteId = Long.parseLong(content);
+        } catch (NumberFormatException e) {
+            System.err.println("Invalid inviteId format: " + content);
+            return;
+        }
+
+        String inviteName = userService.getUserNameById(inviteId);
+        if (inviteName == null || inviteName.isEmpty()) {
+            System.err.println("Invitee name not found for ID: " + inviteId);
+            return;
+        }
+
         ChatMessage enterMessage = new ChatMessage(
                 MessageType.ENTER,
                 roomId.toString(),
-                senderId,
-                senderName,
-                senderName + "님이 입장하셨습니다.",
+                inviteId,
+                inviteName,
+                inviteName + "님이 입장하셨습니다.",
                 LocalDateTime.now()
         );
+
+        // 메시지 저장 및 브로드캐스트
+        messageService.saveMessage(roomId, inviteId, enterMessage.getContent(), MessageType.ENTER);
         messagingTemplate.convertAndSend("/topic/" + roomId, enterMessage);
+
+        System.out.println("Broadcasted enter message: " + enterMessage);
     }
 
-    private void handleTalkMessage(Long roomId, ChatMessage savedMessage) {
+
+    private void handleTalkMessage(Long roomId, Long senderId, MessageDto messageDto) {
+
+        // 메시지 저장
+        ChatMessage savedMessage = messageService.saveMessage(roomId, senderId, messageDto.getContent(), messageDto.getMessageType());
+
 
         // 메시지 브로커로 전송 (실시간 채팅)
         messagingTemplate.convertAndSend("/topic/" + roomId, savedMessage);
@@ -120,6 +144,7 @@ public class ChatWebSocketController {
                 senderName + "님이 퇴장하셨습니다.",
                 LocalDateTime.now()
         );
+        messageService.saveMessage(roomId, senderId,exitMessage.getContent(), MessageType.EXIT);
         messagingTemplate.convertAndSend("/topic/" + roomId, exitMessage);
     }
 
