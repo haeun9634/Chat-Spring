@@ -2,6 +2,7 @@ package com.example.chating.Service;
 
 import com.example.chating.Repository.MessageRepository;
 import com.example.chating.Dto.ChatMessage;
+import com.example.chating.domain.MessageType;
 import com.example.chating.domain.chat.Message;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +35,7 @@ public class MessageService {
 
     // 메시지 저장
     @Transactional
-    public ChatMessage saveMessage(Long chatRoomId, Long senderId, String content) {
+    public ChatMessage saveMessage(Long chatRoomId, Long senderId, String content, MessageType messageType) {
         if (chatRoomId == null || senderId == null) {
             throw new IllegalArgumentException("Chat Room ID or Sender ID must not be null.");
         }
@@ -46,6 +47,7 @@ public class MessageService {
                 .chatRoom(chatRoomService.getChatRoomById(chatRoomId))
                 .sender(userService.getUserById(senderId))
                 .content(content)
+                .messageType(messageType)
                 .sentAt(LocalDateTime.now())
                 .build();
         messageRepository.save(messageEntity);
@@ -54,11 +56,11 @@ public class MessageService {
         String latestMessageKey = String.format(CHAT_ROOM_LATEST_MESSAGE_KEY, chatRoomId);
         redisTemplate.opsForValue().set(latestMessageKey, content);
         redisTemplate.opsForZSet().add(CHAT_ROOM_ACTIVITY_KEY, chatRoomId.toString(), System.currentTimeMillis());
-        System.out.println("Redis 캐시 업데이트 완료");
+        //System.out.println("Redis 캐시 업데이트 완료");
 
         return new ChatMessage(
                 messageEntity.getId(),
-                ChatMessage.MessageType.TALK,
+                messageType,
                 chatRoomId.toString(),
                 senderId,
                 senderName,
@@ -127,7 +129,7 @@ public class MessageService {
         return updatedMessages.stream()
                 .map(message -> new ChatMessage(
                         message.getId(),
-                        ChatMessage.MessageType.TALK,
+                        MessageType.TALK,
                         message.getChatRoom().getId().toString(),
                         message.getSender().getId(),
                         message.getSender().getName(),

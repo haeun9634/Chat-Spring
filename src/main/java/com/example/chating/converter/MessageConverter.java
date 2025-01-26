@@ -4,6 +4,7 @@ import com.example.chating.Dto.MessageDto;
 import com.example.chating.Service.ChatRoomService;
 import com.example.chating.Service.UserService;
 import com.example.chating.Dto.ChatMessage;
+import com.example.chating.domain.MessageType;
 import com.example.chating.domain.User;
 import com.example.chating.domain.chat.ChatRoom;
 import com.example.chating.domain.chat.Message;
@@ -17,7 +18,7 @@ public class MessageConverter {
 
     public static ChatMessage toChatMessage(MessageDto dto) {
         return ChatMessage.builder()
-                .type(ChatMessage.MessageType.TALK)
+                .type(MessageType.TALK)
                 .roomId(dto.getChatRoomId().toString())
                 .senderId(dto.getSenderId())
                 .senderName(dto.getSenderName())

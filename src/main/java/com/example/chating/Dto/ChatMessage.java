@@ -1,5 +1,6 @@
 package com.example.chating.Dto;
 
+import com.example.chating.domain.MessageType;
 import com.example.chating.domain.chat.Message;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -47,9 +48,5 @@ public class ChatMessage implements Serializable {
     // 기존 생성자 수정
     public ChatMessage(MessageType type, String roomId, Long sender, String senderName, String content, LocalDateTime sendAt) {
         this(null, type, roomId, sender, senderName, content, sendAt, false, 0);
-    }
-
-    public enum MessageType {
-        ENTER, TALK, MATCH_REQUEST, EXIT, MATCH, CHAT
     }
 }
