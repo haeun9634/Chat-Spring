@@ -1,6 +1,7 @@
 package com.example.chating.Service;
 
 import com.example.chating.Dto.TokenResponseDTO;
+import com.example.chating.domain.Emoji;
 import com.example.chating.domain.User;
 import com.example.chating.Dto.LoginRequestDTO;
 import com.example.chating.Dto.LoginResponseDTO;
@@ -24,7 +25,7 @@ public class AuthService {
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    public void signUp(LoginRequestDTO signUpRequestDTO) {
+    public void signUp(LoginRequestDTO signUpRequestDTO, Emoji emoji) {
         if (userRepository.findByName(signUpRequestDTO.getUsername()).isPresent()) {
             throw new RuntimeException("Username already exists");
         }
@@ -33,6 +34,7 @@ public class AuthService {
         User user = new User();
         user.setName(signUpRequestDTO.getUsername());
         user.setPassword(encodedPassword);
+        user.setEmoji(emoji);
         userRepository.save(user);
     }
 

@@ -4,6 +4,7 @@ import com.example.chating.Dto.LoginRequestDTO;
 import com.example.chating.Dto.LoginResponseDTO;
 import com.example.chating.Dto.TokenResponseDTO;
 import com.example.chating.Service.AuthService;
+import com.example.chating.domain.Emoji;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,8 +22,8 @@ public class AuthController {
 
 
     @PostMapping("/signup")
-    public String signUp(@RequestBody LoginRequestDTO loginRequestDTO) {
-        authService.signUp(loginRequestDTO);
+    public String signUp(@RequestBody LoginRequestDTO loginRequestDTO, Emoji emoji) {
+        authService.signUp(loginRequestDTO, emoji);
         return "User registered successfully";
     }
 

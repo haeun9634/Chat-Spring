@@ -127,7 +127,7 @@ public class ChatWebSocketController {
 
         // 사용자 채팅방 목록 업데이트 (ChatRoomDto 생성 후 전송)
         ChatRoom updatedChatRoom = chatRoomService.getChatRoomById(roomId);
-        String latestMessage = messageService.getLatestMessageContentFromDb(roomId);
+        String latestMessage = messageService.getLatestMessageContent(roomId);
         List<UserProfileDto> userProfiles = chatRoomService.getUserProfilesByChatRoomId(roomId);
 
         ChatRoomDto chatRoomDto = new ChatRoomDto(updatedChatRoom, latestMessage, userProfiles);
@@ -171,6 +171,21 @@ public class ChatWebSocketController {
         messagingTemplate.convertAndSend("/topic/" + roomId, matchMessage);
     }
 
+    @MessageMapping("/chat/{roomId}/read")
+    public void updateReadStatus(
+            @DestinationVariable Long roomId,
+            @Payload Map<String, Object> payload,
+            @Header("Authorization") String token
+    ) {
+        Long userId = extractUserIdFromToken(token);
+        messageService.updateReadStatus(roomId, userId);
+
+        // 읽음 상태를 브로드캐스트
+        messagingTemplate.convertAndSend(
+                "/topic/" + roomId + "/read",
+                new ReadStatusDto(roomId, userId, chatRoomService.getReadByUsersCount(roomId))
+        );
+    }
 
 
 
