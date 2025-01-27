@@ -210,23 +210,6 @@ public class ChatRoomService {
 
 
 
-    public int getReadByUsersCount(Long roomId) {
-        try {
-            // Redis에서 읽음 상태의 사용자 수 조회
-            String redisKey = "chatroom:" + roomId + ":readUsers";
-            int count = redisTemplate.opsForSet().size(redisKey).intValue();
-
-            // 결과를 로깅
-            System.out.println("Read by users count: roomId=" + roomId + ", count=" + count);
-            return count;
-        } catch (Exception e) {
-            // 예외 발생 시 로깅 및 기본값 반환
-            System.err.println("Failed to get read by users count: roomId=" + roomId);
-            e.printStackTrace();
-            return 0;
-        }
-    }
-
 //
 //    @Transactional
 //    public void updateUserActiveStatus(Long roomId, Long userId, boolean isActive) {

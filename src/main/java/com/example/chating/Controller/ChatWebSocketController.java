@@ -183,38 +183,9 @@ public class ChatWebSocketController {
         // 읽음 상태를 브로드캐스트
         messagingTemplate.convertAndSend(
                 "/topic/" + roomId + "/read",
-                new ReadStatusDto(roomId, userId, chatRoomService.getReadByUsersCount(roomId))
+                new ReadStatusDto(roomId, userId, messageService.getReadByUsersCount(roomId))
         );
     }
-
-
-
-//    @MessageMapping("/chat/{roomId}/read")
-//    public void updateReadStatus(@DestinationVariable Long roomId, @Payload MessageDto messageDto, @Header("Authorization") String token) {
-//        // 토큰에서 사용자 ID 추출
-//        Long userId = extractUserIdFromToken(token);
-//
-//        // 읽음 처리
-//        messageService.updateReadStatus(roomId, userId);
-//
-//        // 모든 사용자에게 읽음 상태 브로드캐스트
-//        messagingTemplate.convertAndSend("/topic/" + roomId + "/read", new ReadStatusDto(roomId, userId));
-//    }
-
-//    @MessageMapping("/chat/{roomId}/active")
-//    public void handleActiveStatus(
-//            @DestinationVariable Long roomId,
-//            @Payload ActiveStatusDto activeStatus,
-//            @Header("Authorization") String token) {
-//
-//        Long userId = extractUserIdFromToken(token);
-//        boolean isActive = activeStatus.isActive();
-//
-//        chatRoomService.updateUserActiveStatus(roomId, userId, isActive);
-//
-//        System.out.println("User " + userId + " is now " + (isActive ? "active" : "inactive") + " in room " + roomId);
-//    }
-
 
 
 

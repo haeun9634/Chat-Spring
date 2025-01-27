@@ -1,18 +1,20 @@
 package com.example.chating.Service;
 
+import com.example.chating.Repository.ChatRoomRepository;
+import com.example.chating.Repository.UserChatRoomRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Set;
 
 @Service
+@RequiredArgsConstructor
 public class RedisService {
 
     private final RedisTemplate<String, Object> redisTemplate;
-
-    public RedisService(RedisTemplate<String, Object> redisTemplate) {
-        this.redisTemplate = redisTemplate;
-    }
+    private final UserChatRoomRepository userChatRoomRepository;
+    private final ChatRoomRepository chatRoomRepository;
 
     /**
      * Redis 데이터 초기화 (모든 키 삭제)
@@ -32,5 +34,8 @@ public class RedisService {
             System.err.println("Redis 초기화 중 오류 발생:");
             e.printStackTrace();
         }
+        //db 데이터도 함께 초기화
+        userChatRoomRepository.deleteAll();
+        chatRoomRepository.deleteAll();
     }
 }
